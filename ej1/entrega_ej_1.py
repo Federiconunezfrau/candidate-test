@@ -5,6 +5,9 @@ from cocotb.triggers import RisingEdge, Timer
 from cocotb.clock import Clock
 from random import getrandbits
 
+# en este archivo agrego funciones de utilidades
+from utils import sumar_complemento_a_dos
+
 # =======================================================
 '''
 Clase Stream
@@ -14,6 +17,8 @@ class Stream(Record):
 
     def __init__(self, width, **kwargs):
         Record.__init__(self, [('data', width), ('valid', 1), ('ready', 1)], **kwargs)
+        # record is a bundle of signals. 
+        # por eso cuando paso name = 'a', se crean las señales a__data, a__valid y a__ready
 
 
     def accepted(self):
@@ -64,6 +69,8 @@ class Adder(Elaboratable):
         sync = m.d.sync
         comb = m.d.comb
 
+        # mask_check_msb = int('1',2)<<(len(self.a__)-1) # esta maścara sirve para conocer el bit maś significativo de los datos de entrada.
+
         # Se chequea si 'r' fue aceptada
         with m.If(self.r.accepted()):
             # si fue aceptada, luego se agrega la regla de que, en el próximo rise del clock, r.valid sea igual a 0, es decir False.
@@ -75,8 +82,9 @@ class Adder(Elaboratable):
             # y de que r.data sea igual a la suma de los datos de 'a' y 'b''
             sync += [
                 self.r.valid.eq(1),
-                self.r.data.eq(self.a.data + self.b.data)
+                self.r.data.eq(self.a.data.as_signed() + self.b.data.as_signed())
             ]
+
         # esta regla hace que a.ready sea siempre igual a ((NOT r.valid) OR (r.accepted()))
         comb += self.a.ready.eq((~self.r.valid) | (self.r.accepted()))
         comb += self.b.ready.eq((~self.r.valid) | (self.r.accepted()))
@@ -90,7 +98,7 @@ async def init_test(dut):
     cocotb.fork(Clock(dut.clk, 2, 'ns').start())
     dut.rst <= 1
     await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
+    #await RisingEdge(dut.clk)
     dut.rst <= 0
 
 
@@ -109,14 +117,14 @@ async def burst(dut):
     N = 5	# cantidad de palabras de los datos
     width_in = len(dut.a__data)
     width_out = len(dut.r__data)
-    mask = int('1' * width_out, 2)
-
+    
     # se genera una lista de números enteros, aleatorios, usando 'width' bits (para el ejemplo 5), y de largo N, o sea 100.
     data_a = [getrandbits(width_in) for _ in range(N)]
     data_b = [getrandbits(width_in) for _ in range(N)]
 
     # se genera el expected de datos
-    expected = [(data_a[d] + data_b[d]) & mask for d in range(N)]
+    # expected = [(data_a[d] + data_b[d]) & mask for d in range(N)]
+    expected = [sumar_complemento_a_dos(data_a[i],data_b[i],width_in,width_out) for i in range(N)]
 
     # se forkea otro proceso 'send'. El proceso toma los datos de 'data' y los coloca uno por uno en lo que llama 'stream_input'.
     # Luego de colocar el dato, se suspende el proceso 'send' hasta que ocurre un rise en el clock. De esta forma se simula el
@@ -141,7 +149,7 @@ Main programa
 if __name__ == '__main__':
 
     N_in = 5          # cantidad de bits de las streams de entrada 'a' y 'b'
-    N_out = N_in+1    # cantidad de bits del stream de salida, 'r''
+    N_out = N_in+5    # cantidad de bits del stream de salida, 'r''
 
     core = Adder(N_in,N_out) # "core" es una instancia de la clase Adder
     run(
