@@ -1,0 +1,19 @@
+  reg [7:0] mem [15:0];
+  initial begin
+    mem[0] = 8'h90;
+    mem[1] = 8'hb3;
+    mem[2] = 8'h23;
+    mem[3] = 8'hfe;
+    mem[4] = 8'ha7;
+    mem[5] = 8'h4f;
+    mem[6] = 8'h2c;
+    mem[7] = 8'h5d;
+    mem[8] = 8'h57;
+    mem[9] = 8'h93;
+    mem[10] = 8'h5a;
+    mem[11] = 8'h77;
+    mem[12] = 8'h51;
+    mem[13] = 8'h12;
+    mem[14] = 8'h6e;
+    mem[15] = 8'h98;
+  end
