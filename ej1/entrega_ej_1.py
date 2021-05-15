@@ -102,23 +102,25 @@ class Adder(Elaboratable):
 
         # mask_check_msb = int('1',2)<<(len(self.a__)-1) # esta maścara sirve para conocer el bit maś significativo de los datos de entrada.
 
-        # Se chequea si 'r' fue aceptada
+        # Se chequea si el dato de salida 'r' fue aceptado
         with m.If(self.r.accepted()):
-            # si fue aceptada, luego se agrega la regla de que, en el próximo rise del clock, r.valid sea igual a 0, es decir False.
+            # si fue aceptado, luego se setea el 'valid' de salida en 0
             sync += self.r.valid.eq(0)
 
         # Se chequea si ambas señales de entrada fueron aceptadas
         with m.If(self.a.accepted() & self.b.accepted()):
             # si lo fueron, luego se agregan las reglas de que, en el próximo rise del clock, r.valid sea igual a 1, es decir True.
-            # y de que r.data sea igual a la suma de los datos de 'a' y 'b''
+            # y de que r.data sea igual a la suma de los datos de 'a' y 'b'
             sync += [
-                self.r.valid.eq(1),
-                self.r.data.eq(self.a.data.as_signed() + self.b.data.as_signed())
+                self.r.data.eq(self.a.data.as_signed() + self.b.data.as_signed()),
+                self.r.valid.eq(1)
             ]
 
         # esta regla hace que a.ready sea siempre igual a ((NOT r.valid) OR (r.accepted()))
         comb += self.a.ready.eq((~self.r.valid) | (self.r.accepted()))
         comb += self.b.ready.eq((~self.r.valid) | (self.r.accepted()))
+        # comb += self.a.ready.eq((~self.r.valid) & self.r.ready)
+        # comb += self.b.ready.eq((~self.r.valid) & self.r.ready)
         return m
 # =======================================================
 '''
@@ -145,11 +147,11 @@ async def burst(dut):
     stream_input_b = Stream.Driver(dut.clk, dut, 'b__')
     stream_output = Stream.Driver(dut.clk, dut, 'r__')
 
-    N = 5	# cantidad de palabras de los datos
+    N = 100	# cantidad de palabras de los datos
     width_in = len(dut.a__data)
     width_out = len(dut.r__data)
     
-    # se genera una lista de números enteros, aleatorios, usando 'width' bits (para el ejemplo 5), y de largo N, o sea 100.
+    # se genera una lista de números enteros, aleatorios, usando 'width' bits y de largo N
     data_a = [getrandbits(width_in) for _ in range(N)]
     data_b = [getrandbits(width_in) for _ in range(N)]
 
@@ -163,7 +165,7 @@ async def burst(dut):
     cocotb.fork(stream_input_a.send(data_a))
     cocotb.fork(stream_input_b.send(data_b))
 
-    # luego de forkear, se llama al proceso recv para el stream_output y se espera a que este termine. recv lo que hace es que
+    # se llama al proceso recv para el stream_output y se espera a que este termine. recv lo que hace es que
     # en cada rise del clock, si r.valid es 1  ==> se copia el valor de r.data en en la lista 'data', definida dentro de recv.
     # Finalmente 'recv' devuelve esta lista.
     recved = await stream_output.recv(N)
@@ -179,8 +181,8 @@ Main programa
 
 if __name__ == '__main__':
 
-    N_in = 5          # cantidad de bits de las streams de entrada 'a' y 'b'
-    N_out = N_in+5    # cantidad de bits del stream de salida, 'r''
+    N_in = 8      # cantidad de bits de las streams de entrada 'a' y 'b'
+    N_out = 16    # cantidad de bits del stream de salida, 'r''
 
     core = Adder(N_in,N_out) # "core" es una instancia de la clase Adder
     run(
